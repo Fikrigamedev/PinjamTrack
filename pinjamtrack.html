@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#dfe5f1" id="themeMeta">
+    <script>try{var t=localStorage.getItem('pinjamtrack_theme');if(t!=='dark'&&t!=='light')t=matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.setAttribute('data-theme',t)}catch(e){}</script>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>PinjamTrack</title>
+
+    <link rel="manifest" id="manifest-link">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <script>
+        if (window.tailwind) tailwind.config = {
+            theme: { extend: { fontFamily: { sans: ['Inter', 'sans-serif'] } } }
+        }
+    </script>
+    <style>
+        html { overflow-x: hidden; max-width: 100%; }
+        body { background: #dfe5f1; overflow-x: clip; max-width: 100%; }
+        main { overflow-x: clip; }
+        .glass {
+            background: rgba(255, 255, 255, 0.22);
+            backdrop-filter: blur(24px) saturate(180%);
+            -webkit-backdrop-filter: blur(24px) saturate(180%);
+            border: 1px solid rgba(255, 255, 255, 0.7);
+            box-shadow: 0 8px 32px rgba(49, 46, 129, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+        .glass-strong {
+            background: rgba(255, 255, 255, 0.28);
+            backdrop-filter: blur(30px) saturate(190%);
+            -webkit-backdrop-filter: blur(30px) saturate(190%);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: 0 12px 40px rgba(49, 46, 129, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+        }
+        .glass-input {
+            background: rgba(255, 255, 255, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.8);
+            box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.06);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+        }
+        .glass-input:focus { background: rgba(255, 255, 255, 0.55); }
+        .view { display: none; }
+        .view.active { display: block; }
+        .view.from-right { animation: slideInR .38s cubic-bezier(.22,1,.36,1) both; }
+        .view.from-left { animation: slideInL .38s cubic-bezier(.22,1,.36,1) both; }
+        @keyframes slideInR { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: none; } }
+        @keyframes slideInL { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: none; } }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+        .card-in { animation: fadeUp .4s cubic-bezier(.22,1,.36,1) both; }
+        .nav-pill {
+            position: absolute; top: 8px; bottom: 8px; left: 8px;
+            width: calc((100% - 16px) / 3);
+            border-radius: 1rem;
+            background: rgba(255, 255, 255, 0.55);
+            box-shadow: 0 4px 14px rgba(79, 70, 229, 0.18), inset 0 1px 0 rgba(255,255,255,.9);
+            transition: transform .4s cubic-bezier(.34, 1.4, .64, 1);
+        }
+        .nav-btn svg { transition: transform .3s ease; }
+        .nav-btn.active { color: #4f46e5; }
+        .nav-btn.active svg { transform: translateY(-2px) scale(1.12); }
+
+        /* Efek tekan ala iOS + cahaya mengikuti titik sentuh */
+        .lit {
+            position: relative; overflow: hidden; --mx: 50%; --my: 50%;
+            -webkit-tap-highlight-color: transparent;
+            transition: transform .55s cubic-bezier(.34, 1.56, .64, 1), background-color .3s, box-shadow .35s;
+        }
+        .lit::before {
+            content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+            opacity: 0; transition: opacity .7s ease;
+            background: radial-gradient(circle 130px at var(--mx) var(--my), var(--glow-a) 0%, var(--glow-b) 50%, transparent 78%);
+        }
+        .lit.pressed { transform: scale(.98); transition-duration: .15s; }
+        .lit.pressed::before { opacity: .8; transition-duration: .1s; }
+        .lit.soft.pressed { transform: none; }
+
+        /* Search bar kaca */
+        .search-glass::after {
+            content: ''; position: absolute; top: 0; bottom: 0; left: -60%; width: 45%;
+            background: linear-gradient(100deg, transparent, rgba(255,255,255,.9), transparent);
+            transform: skewX(-20deg); opacity: 0; pointer-events: none;
+        }
+        .search-glass:focus-within {
+            transform: scale(1.025);
+            background: rgba(255, 255, 255, 0.45);
+            backdrop-filter: blur(40px) saturate(230%);
+            -webkit-backdrop-filter: blur(40px) saturate(230%);
+            box-shadow: 0 0 0 2px rgba(99,102,241,.45), 0 14px 40px rgba(99,102,241,.28), inset 0 1px 0 rgba(255,255,255,.95);
+        }
+        .search-glass:focus-within::after { animation: sheen .9s ease-out; }
+        @keyframes sheen { 0% { left: -60%; opacity: 0; } 20% { opacity: 1; } 100% { left: 130%; opacity: 0; } }
+        .search-icon { transition: color .3s, transform .45s cubic-bezier(.34, 1.56, .64, 1); }
+        .search-glass:focus-within .search-icon { color: #4f46e5; transform: scale(1.18); }
+
+        :root { --glow-a: rgba(255,255,255,.55); --glow-b: rgba(165,180,252,.18); }
+        header > div.lit, nav > div.lit { touch-action: none; }
+        .lit { touch-action: pan-y; }
+        body { transition: background-color .4s ease, color .4s ease; }
+
+        /* Saklar ala iOS */
+        .ios-switch {
+            position: relative; width: 51px; height: 31px; flex-shrink: 0; border-radius: 9999px;
+            background: rgba(120, 120, 140, .32); border: 1px solid rgba(255,255,255,.55);
+            box-shadow: inset 0 1px 3px rgba(0,0,0,.12); cursor: pointer;
+        }
+        .ios-switch[aria-checked="true"] { background: #6366f1; border-color: rgba(255,255,255,.35); }
+        .ios-switch .thumb {
+            position: absolute; top: 1px; left: 1px; width: 27px; height: 27px; border-radius: 9999px;
+            background: #fff; box-shadow: 0 2px 5px rgba(0,0,0,.25);
+            display: flex; align-items: center; justify-content: center;
+            transition: transform .4s cubic-bezier(.34, 1.56, .64, 1), width .25s cubic-bezier(.34, 1.56, .64, 1);
+        }
+        .ios-switch[aria-checked="true"] .thumb { transform: translateX(20px); }
+        .ios-switch.pressed .thumb { width: 34px; }
+        .ios-switch[aria-checked="true"].pressed .thumb { transform: translateX(13px); }
+        .ios-switch .thumb svg { position: absolute; width: 15px; height: 15px; transition: opacity .3s, transform .45s cubic-bezier(.34, 1.56, .64, 1); }
+        .ios-switch .ic-sun { color: #f59e0b; opacity: 1; }
+        .ios-switch .ic-moon { color: #6366f1; opacity: 0; transform: rotate(-60deg) scale(.5); }
+        .ios-switch[aria-checked="true"] .ic-sun { opacity: 0; transform: rotate(60deg) scale(.5); }
+        .ios-switch[aria-checked="true"] .ic-moon { opacity: 1; transform: none; }
+
+        /* ===== Tema gelap ===== */
+        html[data-theme="dark"] { color-scheme: dark; --glow-a: rgba(255,255,255,.14); --glow-b: rgba(129,140,248,.16); }
+        html[data-theme="dark"] body { background: #0b1120; color: #e2e8f0; }
+        html[data-theme="dark"] .glass { background: rgba(30,41,59,.38); border-color: rgba(255,255,255,.14); box-shadow: 0 8px 32px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.08); }
+        html[data-theme="dark"] .glass-strong { background: rgba(30,41,59,.5); border-color: rgba(255,255,255,.16); box-shadow: 0 12px 40px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.1); }
+        html[data-theme="dark"] .glass-input { background: rgba(255,255,255,.07); border-color: rgba(255,255,255,.14); box-shadow: inset 0 1px 2px rgba(0,0,0,.3); color: #e2e8f0; }
+        html[data-theme="dark"] .glass-input:focus { background: rgba(255,255,255,.12); }
+        html[data-theme="dark"] .search-glass::after { background: linear-gradient(100deg, transparent, rgba(255,255,255,.28), transparent); }
+        html[data-theme="dark"] .search-glass:focus-within { background: rgba(255,255,255,.12); box-shadow: 0 0 0 2px rgba(129,140,248,.55), 0 14px 40px rgba(99,102,241,.3), inset 0 1px 0 rgba(255,255,255,.15); }
+        html[data-theme="dark"] .search-glass:focus-within .search-icon { color: #a5b4fc; }
+        html[data-theme="dark"] .seg-btn.active { background: rgba(255,255,255,.16); color: #c7d2fe; box-shadow: none; }
+        html[data-theme="dark"] .nav-pill { background: rgba(255,255,255,.14); box-shadow: 0 4px 14px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.12); }
+        html[data-theme="dark"] .nav-btn.active { color: #c7d2fe; }
+        html[data-theme="dark"] .ios-switch { background: rgba(255,255,255,.18); border-color: rgba(255,255,255,.2); }
+        html[data-theme="dark"] .ios-switch[aria-checked="true"] { background: #6366f1; }
+        html[data-theme="dark"] .text-slate-800 { color: #f1f5f9; }
+        html[data-theme="dark"] .text-slate-700 { color: #e2e8f0; }
+        html[data-theme="dark"] .text-slate-600 { color: #cbd5e1; }
+        html[data-theme="dark"] .text-slate-500 { color: #94a3b8; }
+        html[data-theme="dark"] .text-slate-400 { color: #7c8aa0; }
+        html[data-theme="dark"] .placeholder\:text-slate-400::placeholder { color: #7c8aa0; }
+        html[data-theme="dark"] .text-indigo-600, html[data-theme="dark"] .text-indigo-700 { color: #a5b4fc; }
+        html[data-theme="dark"] .text-sky-600 { color: #38bdf8; }
+        html[data-theme="dark"] .text-amber-600 { color: #fbbf24; }
+        html[data-theme="dark"] .text-amber-800 { color: #fcd34d; }
+        html[data-theme="dark"] .text-emerald-600 { color: #34d399; }
+        html[data-theme="dark"] .text-emerald-800 { color: #6ee7b7; }
+        html[data-theme="dark"] .text-rose-600 { color: #fb7185; }
+        html[data-theme="dark"] .text-rose-800 { color: #fda4af; }
+        html[data-theme="dark"] .bg-white\/70, html[data-theme="dark"] .bg-white\/60 { background-color: rgba(255,255,255,.1); }
+        html[data-theme="dark"] .bg-white\/40 { background-color: rgba(255,255,255,.07); }
+        html[data-theme="dark"] .hover\:bg-white\/70:hover { background-color: rgba(255,255,255,.16); }
+        html[data-theme="dark"] .hover\:bg-white:hover { background-color: rgba(255,255,255,.18); }
+        html[data-theme="dark"] .hover\:bg-rose-100:hover { background-color: rgba(244,63,94,.2); }
+        html[data-theme="dark"] .bg-amber-100\/80 { background-color: rgba(245,158,11,.2); }
+        html[data-theme="dark"] .bg-emerald-100\/80 { background-color: rgba(16,185,129,.2); }
+        html[data-theme="dark"] .bg-rose-100\/80 { background-color: rgba(244,63,94,.2); }
+
+        /* Pemindai QR */
+        .scan-frame { position: absolute; inset: 14%; border: 2px solid rgba(255,255,255,.85); border-radius: 1.25rem; box-shadow: 0 0 0 999px rgba(0,0,0,.35); pointer-events: none; }
+        .scan-frame::after { content: ''; position: absolute; left: 6%; right: 6%; height: 2px; background: linear-gradient(90deg, transparent, #818cf8, transparent); box-shadow: 0 0 12px #818cf8; animation: scanline 1.8s ease-in-out infinite; }
+        @keyframes scanline { 0% { top: 8%; } 50% { top: 90%; } 100% { top: 8%; } }
+        .safe-bottom { padding-bottom: calc(env(safe-area-inset-bottom) + 12px); }
+        .seg-btn.active { background: rgba(255,255,255,.85); color: #4f46e5; box-shadow: 0 2px 8px rgba(79,70,229,.15); }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen font-sans">
+
+    <!-- SVG Sprite -->
+    <svg width="0" height="0" style="position:absolute" aria-hidden="true">
+        <defs>
+            <symbol id="i-handshake" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 17 2 2a1 1 0 1 0 3-3"/><path d="m14 14 2.5 2.5a1 1 0 1 0 3-3l-3.88-3.88a3 3 0 0 0-4.24 0l-.88.88a1 1 0 1 1-3-3l2.81-2.81a5.79 5.79 0 0 1 7.06-.87l.47.28a2 2 0 0 0 1.42.25L21 4"/><path d="m21 3 1 11h-2"/><path d="M3 3 2 14l6.5 6.5a1 1 0 1 0 3-3"/><path d="M3 4h8"/></symbol>
+            <symbol id="i-qr" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="5" height="5" x="3" y="3" rx="1"/><rect width="5" height="5" x="16" y="3" rx="1"/><rect width="5" height="5" x="3" y="16" rx="1"/><path d="M21 16h-3a2 2 0 0 0-2 2v3"/><path d="M21 21v.01"/><path d="M12 7v3a2 2 0 0 1-2 2H7"/><path d="M3 12h.01"/><path d="M12 3h.01"/><path d="M12 16v.01"/><path d="M16 12h1"/><path d="M21 12v.01"/><path d="M12 21v-1"/></symbol>
+            <symbol id="i-lock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+            <symbol id="i-image" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
+            <symbol id="i-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></symbol>
+            <symbol id="i-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></symbol>
+            <symbol id="i-upload" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></symbol>
+            <symbol id="i-table" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/></symbol>
+            <symbol id="i-code" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></symbol>
+            <symbol id="i-home" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></symbol>
+            <symbol id="i-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></symbol>
+            <symbol id="i-plus-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></symbol>
+            <symbol id="i-settings" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></symbol>
+            <symbol id="i-check-circle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></symbol>
+            <symbol id="i-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></symbol>
+            <symbol id="i-trash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></symbol>
+            <symbol id="i-x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></symbol>
+            <symbol id="i-calendar" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></symbol>
+            <symbol id="i-download" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></symbol>
+            <symbol id="i-alert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
+            <symbol id="i-camera" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></symbol>
+            <symbol id="i-package" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></symbol>
+            <symbol id="i-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
+            <symbol id="i-inbox" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+            <symbol id="i-clock" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></symbol>
+            <symbol id="i-eye" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></symbol>
+            <symbol id="i-search" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></symbol>
+            <symbol id="i-info" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></symbol>
+            <symbol id="i-file" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
+        </defs>
+    </svg>
+
+    <!-- Header -->
+    <header class="sticky top-0 z-30 px-4 pt-3">
+        <div class="max-w-5xl mx-auto glass rounded-2xl px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2.5">
+                <svg class="w-8 h-8 text-indigo-600"><use href="#i-handshake"/></svg>
+                <h1 class="text-lg font-bold tracking-tight text-slate-800">PinjamTrack</h1>
+            </div>
+            <button id="installBtn" class="hidden glass-input text-indigo-700 px-3 py-1.5 rounded-xl text-sm font-medium items-center gap-1.5">
+                <svg class="w-4 h-4"><use href="#i-download"/></svg> Install
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-4 mt-5 pb-36">
+
+        <!-- ===== BERANDA ===== -->
+        <section id="view-beranda" class="view active space-y-5">
+            <div class="grid grid-cols-3 gap-3">
+                <div class="glass rounded-2xl p-4">
+                    <div class="text-xs text-slate-500 font-medium">Dipinjam</div>
+                    <div id="statBorrowed" class="text-2xl font-bold text-amber-600 mt-1">0</div>
+                </div>
+                <div class="glass rounded-2xl p-4">
+                    <div class="text-xs text-slate-500 font-medium">Terlambat</div>
+                    <div id="statOverdue" class="text-2xl font-bold text-rose-600 mt-1">0</div>
+                </div>
+                <div class="glass rounded-2xl p-4">
+                    <div class="text-xs text-slate-500 font-medium">Kembali</div>
+                    <div id="statReturned" class="text-2xl font-bold text-emerald-600 mt-1">0</div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-3">
+                <div class="search-glass glass rounded-xl flex-1">
+                    <svg class="search-icon w-5 h-5 absolute left-3.5 top-0 bottom-0 my-auto text-slate-400"><use href="#i-search"/></svg>
+                    <input id="searchInput" type="text" placeholder="Cari barang atau peminjam..." class="block w-full bg-transparent pl-11 pr-4 py-2.5 outline-none placeholder:text-slate-400 text-sm">
+                </div>
+                <div class="glass rounded-xl p-1 flex gap-1 text-sm font-medium text-slate-600" id="segFilter">
+                    <button class="seg-btn active flex-1 px-4 py-1.5 rounded-lg transition-all" data-filter="Dipinjam">Dipinjam</button>
+                    <button class="seg-btn flex-1 px-4 py-1.5 rounded-lg transition-all" data-filter="Dikembalikan">Kembali</button>
+                    <button class="seg-btn flex-1 px-4 py-1.5 rounded-lg transition-all" data-filter="all">Semua</button>
+                </div>
+            </div>
+
+            <div id="loanList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+
+            <div id="emptyState" class="hidden glass rounded-2xl flex-col items-center justify-center py-14 px-4 text-center">
+                <div class="w-16 h-16 rounded-full bg-white/60 flex items-center justify-center mb-4 text-slate-400">
+                    <svg class="w-8 h-8"><use href="#i-inbox"/></svg>
+                </div>
+                <h3 class="font-semibold text-slate-800">Belum ada data</h3>
+                <p class="text-slate-500 mt-1 text-sm">Barang yang dipinjam akan muncul di sini.</p>
+            </div>
+        </section>
+
+        <!-- ===== TAMBAH ===== -->
+        <section id="view-tambah" class="view">
+            <div class="glass rounded-3xl overflow-hidden max-w-2xl mx-auto">
+                <div class="px-6 pt-6 pb-2">
+                    <h2 class="text-lg font-semibold flex items-center gap-2">
+                        <span class="text-indigo-600"><svg class="w-5 h-5"><use href="#i-plus-circle"/></svg></span>
+                        Tambah Barang Pinjaman
+                    </h2>
+                    <p class="text-sm text-slate-500 mt-1">Catat data peminjaman beserta foto kondisi awal.</p>
+                </div>
+
+                <form id="loanForm" class="p-6 space-y-5">
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Nama Barang</label>
+                        <input type="text" id="namaBarang" required placeholder="Contoh: Proyektor Epson" class="glass-input w-full px-4 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-slate-400">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Nama Peminjam</label>
+                        <input type="text" id="namaPeminjam" required placeholder="Contoh: Budi Santoso" class="glass-input w-full px-4 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-slate-400">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Jumlah</label>
+                        <input type="number" id="jumlahBarang" required min="1" placeholder="Masukkan jumlah barang" class="glass-input w-full px-4 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-400 placeholder:text-slate-400">
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Tanggal Peminjaman</label>
+                            <input type="date" id="tglPinjam" required class="glass-input w-full px-4 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-slate-700 mb-1">Rencana Dikembalikan</label>
+                            <input type="date" id="tglKembali" required class="glass-input w-full px-4 py-2.5 rounded-xl outline-none focus:ring-2 focus:ring-indigo-400 text-slate-700">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-slate-700 mb-1">Foto Kondisi Awal</label>
+                        <label for="fotoKondisi" class="glass-input rounded-xl border-dashed flex flex-col items-center justify-center gap-2 py-6 cursor-pointer hover:bg-white/80 transition-colors text-slate-500 overflow-hidden">
+                            <img id="fotoPreview" class="hidden w-full max-h-48 object-cover" alt="Preview">
+                            <div id="fotoPlaceholder" class="flex flex-col items-center gap-1.5">
+                                <svg class="w-8 h-8 text-indigo-500"><use href="#i-camera"/></svg>
+                                <span class="text-sm font-medium">Ketuk untuk ambil / pilih foto</span>
+                            </div>
+                        </label>
+                        <input type="file" id="fotoKondisi" accept="image/*" required class="sr-only">
+                    </div>
+
+                    <button type="submit" class="w-full bg-indigo-500 hover:bg-indigo-600 text-white py-3 rounded-xl font-semibold shadow-lg shadow-indigo-300/50 transition-all flex items-center justify-center gap-2">
+                        <svg class="w-5 h-5"><use href="#i-check"/></svg>
+                        Simpan Peminjaman
+                    </button>
+                </form>
+            </div>
+        </section>
+
+        <!-- ===== SETTING ===== -->
+        <section id="view-setting" class="view">
+            <div class="max-w-2xl mx-auto space-y-4">
+                <div class="glass rounded-3xl p-6">
+                    <h2 class="text-lg font-semibold flex items-center gap-2">
+                        <span class="text-indigo-600"><svg class="w-5 h-5"><use href="#i-settings"/></svg></span>
+                        Pengaturan
+                    </h2>
+                    <p class="text-sm text-slate-500 mt-1">Kelola aplikasi dan data peminjaman.</p>
+                </div>
+
+                <div id="themeRow" class="glass rounded-2xl p-5 flex items-center justify-between gap-4 cursor-pointer">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white/70 text-indigo-600 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-moon"/></svg></div>
+                        <div>
+                            <div class="font-medium text-sm">Mode Gelap</div>
+                            <div id="themeDesc" class="text-xs text-slate-500">Tema terang aktif</div>
+                        </div>
+                    </div>
+                    <button id="themeSwitch" type="button" role="switch" aria-checked="false" aria-label="Mode gelap" class="ios-switch lit">
+                        <span class="thumb">
+                            <svg class="ic-sun"><use href="#i-sun"/></svg>
+                            <svg class="ic-moon"><use href="#i-moon"/></svg>
+                        </span>
+                    </button>
+                </div>
+
+                <div class="glass rounded-2xl p-5 flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white/70 text-indigo-600 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-download"/></svg></div>
+                        <div>
+                            <div class="font-medium text-sm">Install Aplikasi</div>
+                            <div class="text-xs text-slate-500">Tambahkan ke layar utama</div>
+                        </div>
+                    </div>
+                    <button id="installBtn2" class="bg-indigo-500 hover:bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">Install</button>
+                </div>
+
+                <div class="glass rounded-2xl p-5 flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white/70 text-emerald-600 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-file"/></svg></div>
+                        <div>
+                            <div class="font-medium text-sm">Ekspor Data</div>
+                            <div class="text-xs text-slate-500">Simpan sebagai JSON atau spreadsheet</div>
+                        </div>
+                    </div>
+                    <button id="exportBtn" class="bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">Ekspor</button>
+                </div>
+
+                <div class="glass rounded-2xl p-5 flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white/70 text-sky-600 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-upload"/></svg></div>
+                        <div>
+                            <div class="font-medium text-sm">Impor Data (JSON)</div>
+                            <div class="text-xs text-slate-500">Pulihkan data dari file hasil ekspor</div>
+                        </div>
+                    </div>
+                    <button id="importBtn" class="bg-sky-500 hover:bg-sky-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">Impor</button>
+                    <input type="file" id="importInput" accept=".json,application/json" class="hidden">
+                </div>
+
+                <div class="glass rounded-2xl p-5 flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white/70 text-amber-600 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-check-circle"/></svg></div>
+                        <div>
+                            <div class="font-medium text-sm">Hapus yang Sudah Kembali</div>
+                            <div class="text-xs text-slate-500">Bersihkan riwayat pengembalian</div>
+                        </div>
+                    </div>
+                    <button id="clearReturnedBtn" class="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">Bersihkan</button>
+                </div>
+
+                <div class="glass rounded-2xl p-5 flex items-center justify-between gap-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-white/70 text-rose-600 flex items-center justify-center"><svg class="w-5 h-5"><use href="#i-trash"/></svg></div>
+                        <div>
+                            <div class="font-medium text-sm">Hapus Semua Data</div>
+                            <div class="text-xs text-slate-500">Tidak dapat dibatalkan</div>
+                        </div>
+                    </div>
+                    <button id="clearAllBtn" class="bg-rose-500 hover:bg-rose-600 text-white px-4 py-2 rounded-xl text-sm font-medium transition-colors">Hapus</button>
+                </div>
+
+                <p class="text-center text-xs text-slate-500 pt-2 flex items-center justify-center gap-1.5">
+                    PinjamTrack V2.0 - By CaxaStudio
+                </p>
+            </div>
+        </section>
+    </main>
+
+    <!-- Bottom Bar -->
+    <nav class="fixed bottom-0 inset-x-0 z-40 px-4 safe-bottom pointer-events-none">
+        <div class="relative max-w-md mx-auto glass-strong rounded-3xl p-2 flex items-center justify-between pointer-events-auto">
+            <div id="navPill" class="nav-pill"></div>
+            <button class="nav-btn active relative z-10 flex-1 flex flex-col items-center gap-0.5 py-2 rounded-2xl text-slate-500 transition-colors" data-view="beranda">
+                <svg class="w-6 h-6"><use href="#i-home"/></svg>
+                <span class="text-[11px] font-semibold">Beranda</span>
+            </button>
+            <button class="nav-btn relative z-10 flex-1 flex flex-col items-center gap-0.5 py-2 rounded-2xl text-slate-500 transition-colors" data-view="tambah">
+                <svg class="w-6 h-6"><use href="#i-plus-circle"/></svg>
+                <span class="text-[11px] font-semibold">Tambah</span>
+            </button>
+            <button class="nav-btn relative z-10 flex-1 flex flex-col items-center gap-0.5 py-2 rounded-2xl text-slate-500 transition-colors" data-view="setting">
+                <svg class="w-6 h-6"><use href="#i-settings"/></svg>
+                <span class="text-[11px] font-semibold">Setting</span>
+            </button>
+        </div>
+    </nav>
+
+    <!-- Modal Konfirmasi -->
+    <div id="confirmModal" class="hidden fixed inset-0 bg-slate-900/30 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="glass-strong rounded-3xl max-w-sm w-full p-6 transform scale-95 transition-transform duration-300" id="confirmModalContent">
+            <div class="w-12 h-12 rounded-full bg-rose-100/80 text-rose-600 flex items-center justify-center mb-4">
+                <svg class="w-6 h-6"><use href="#i-alert"/></svg>
+            </div>
+            <h3 id="confirmTitle" class="text-lg font-bold mb-2"></h3>
+            <p id="confirmText" class="text-slate-600 text-sm mb-6"></p>
+            <div class="flex gap-3 justify-end">
+                <button id="confirmCancel" class="px-4 py-2 rounded-xl font-medium text-slate-700 bg-white/70 hover:bg-white transition-colors">Batal</button>
+                <button id="confirmOk" class="px-4 py-2 rounded-xl font-medium text-white bg-rose-600 hover:bg-rose-700 shadow-sm shadow-rose-200 transition-colors">Ya, Hapus</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Scan QR -->
+    <div id="scanModal" class="hidden fixed inset-0 bg-slate-900/50 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div id="scanModalContent" class="glass-strong rounded-3xl max-w-sm w-full p-5 transform scale-95 transition-transform duration-300">
+            <h3 class="text-lg font-bold">Scan QR Barang</h3>
+            <p id="scanTitle" class="text-sm text-slate-600 mb-3 truncate"></p>
+            <div class="relative rounded-2xl overflow-hidden bg-black aspect-square">
+                <video id="scanVideo" class="w-full h-full object-cover" playsinline muted></video>
+                <div class="scan-frame"></div>
+                <div id="scanMsg" class="hidden absolute inset-x-0 bottom-0 p-3 text-center text-xs text-white bg-black/60"></div>
+            </div>
+            <div class="flex gap-2 mt-4">
+                <button id="scanPick" class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl font-medium text-sm text-slate-700 bg-white/70 hover:bg-white transition-colors"><svg class="w-4 h-4"><use href="#i-image"/></svg> Dari Foto</button>
+                <button id="scanCancel" class="flex-1 py-2 rounded-xl font-medium text-sm text-slate-700 bg-white/70 hover:bg-white transition-colors">Tutup</button>
+            </div>
+            <input type="file" id="scanFile" accept="image/*" class="hidden">
+        </div>
+    </div>
+
+    <!-- Modal Ekspor -->
+    <div id="exportModal" class="hidden fixed inset-0 bg-slate-900/30 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="glass-strong rounded-3xl max-w-sm w-full p-6 transform scale-95 transition-transform duration-300" id="exportModalContent">
+            <h3 class="text-lg font-bold mb-1">Ekspor Data</h3>
+            <p class="text-sm text-slate-600 mb-4">Pilih format file.</p>
+            <div class="space-y-3">
+                <button id="exportJson" class="lit glass w-full rounded-2xl p-4 flex items-center gap-3 text-left">
+                    <div class="w-10 h-10 rounded-xl bg-white/60 text-indigo-600 flex items-center justify-center shrink-0"><svg class="w-5 h-5"><use href="#i-code"/></svg></div>
+                    <div>
+                        <div class="font-semibold text-sm">JSON</div>
+                        <div class="text-xs text-slate-500">Cadangan lengkap + foto, bisa diimpor kembali</div>
+                    </div>
+                </button>
+                <button id="exportXlsx" class="lit glass w-full rounded-2xl p-4 flex items-center gap-3 text-left">
+                    <div class="w-10 h-10 rounded-xl bg-white/60 text-emerald-600 flex items-center justify-center shrink-0"><svg class="w-5 h-5"><use href="#i-table"/></svg></div>
+                    <div>
+                        <div class="font-semibold text-sm">Spreadsheet (.xlsx)</div>
+                        <div class="text-xs text-slate-500">Buka di Excel / Google Sheets</div>
+                    </div>
+                </button>
+            </div>
+            <button id="exportCancel" class="mt-4 w-full py-2 rounded-xl font-medium text-slate-700 bg-white/40 hover:bg-white/70 transition-colors">Batal</button>
+        </div>
+    </div>
+
+    <!-- Preview Gambar -->
+    <div id="imageModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 opacity-0 transition-opacity duration-300">
+        <div class="relative max-w-3xl w-full flex justify-center transform scale-95 transition-transform duration-300" id="imageModalContent">
+            <button id="imageClose" class="absolute -top-12 right-0 text-white hover:text-slate-300 flex items-center gap-1 glass rounded-full px-3 py-1.5 text-sm">
+                <svg class="w-4 h-4"><use href="#i-x"/></svg> Tutup
+            </button>
+            <img id="previewImageLarge" src="" alt="Preview" class="max-h-[80vh] max-w-full rounded-2xl shadow-2xl object-contain">
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toastContainer" class="fixed bottom-28 inset-x-0 z-50 flex flex-col items-center gap-2 px-4 pointer-events-none"></div>
+
+    <script>
+        // ---------- Util ----------
+        const ic = (name, cls = 'w-5 h-5') => `<svg class="${cls}"><use href="#i-${name}"/></svg>`;
+        const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const pad = n => String(n).padStart(2, '0');
+        const dateStr = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+        const todayStr = () => dateStr(new Date());
+        const formatDate = s => new Date(s + 'T00:00:00').toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' });
+
+        // ---------- State ----------
+        const STORAGE_KEY = 'pinjamtrack_data_v2';
+        let loanData = [];
+        let filter = 'Dipinjam';
+        let query = '';
+
+        try { loanData = JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; } catch (e) { loanData = []; }
+
+        function save() {
+            try { localStorage.setItem(STORAGE_KEY, JSON.stringify(loanData)); return true; }
+            catch (e) { showToast('Penyimpanan penuh, data tidak tersimpan permanen', 'error'); return false; }
+        }
+
+        // ---------- Navigasi ----------
+        const VIEWS = ['beranda', 'tambah', 'setting'];
+        let currentView = 'beranda';
+        function showView(name) {
+            if (name === currentView) return;
+            const dir = VIEWS.indexOf(name) > VIEWS.indexOf(currentView) ? 'from-right' : 'from-left';
+            document.querySelectorAll('.view').forEach(v => {
+                v.classList.remove('active', 'from-right', 'from-left');
+                if (v.id === 'view-' + name) v.classList.add('active', dir);
+            });
+            currentView = name;
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.view === name));
+            document.getElementById('navPill').style.transform = `translateX(${VIEWS.indexOf(name) * 100}%)`;
+            if (name === 'beranda') render(true);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        document.querySelectorAll('.nav-btn').forEach(b => b.addEventListener('click', () => showView(b.dataset.view)));
+
+        // ---------- Default tanggal ----------
+        function setDefaultDates() {
+            document.getElementById('tglPinjam').value = todayStr();
+            const t = new Date(); t.setDate(t.getDate() + 1);
+            document.getElementById('tglKembali').value = dateStr(t);
+        }
+        setDefaultDates();
+
+        // ---------- Foto: resize agar hemat penyimpanan ----------
+        function resizeImage(file, max = 800) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onerror = reject;
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onerror = reject;
+                    img.onload = () => {
+                        const scale = Math.min(1, max / Math.max(img.width, img.height));
+                        const c = document.createElement('canvas');
+                        c.width = Math.round(img.width * scale);
+                        c.height = Math.round(img.height * scale);
+                        c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+                        resolve(c.toDataURL('image/jpeg', 0.72));
+                    };
+                    img.src = reader.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        const fotoInput = document.getElementById('fotoKondisi');
+        fotoInput.addEventListener('change', () => {
+            const f = fotoInput.files[0];
+            const prev = document.getElementById('fotoPreview');
+            const ph = document.getElementById('fotoPlaceholder');
+            if (f) {
+                prev.src = URL.createObjectURL(f);
+                prev.classList.remove('hidden');
+                ph.classList.add('hidden');
+            } else {
+                prev.classList.add('hidden');
+                ph.classList.remove('hidden');
+            }
+        });
+
+        // ---------- Form ----------
+        document.getElementById('loanForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const f = fotoInput.files[0];
+            if (!f) return showToast('Harap unggah foto kondisi awal', 'error');
+
+            const tglPinjam = document.getElementById('tglPinjam').value;
+            const tglKembali = document.getElementById('tglKembali').value;
+            if (tglKembali < tglPinjam) return showToast('Tanggal kembali tidak boleh sebelum tanggal pinjam', 'error');
+
+            let fotoUrl;
+            try { fotoUrl = await resizeImage(f); }
+            catch (err) { return showToast('Gagal memproses foto', 'error'); }
+
+            loanData.unshift({
+                id: Date.now().toString(),
+                namaBarang: document.getElementById('namaBarang').value.trim(),
+                namaPeminjam: document.getElementById('namaPeminjam').value.trim(),
+                jumlah: document.getElementById('jumlahBarang').value,
+                tglPinjam, tglKembali, fotoUrl,
+                status: 'Dipinjam',
+                verified: false,
+                actualReturnDate: null
+            });
+            save();
+
+            this.reset();
+            document.getElementById('fotoPreview').classList.add('hidden');
+            document.getElementById('fotoPlaceholder').classList.remove('hidden');
+            setDefaultDates();
+
+            filter = 'Dipinjam';
+            syncSegment();
+            render();
+            showView('beranda');
+            showToast('Data peminjaman berhasil ditambahkan');
+        });
+
+        // ---------- QR Code ----------
+        const qrReady = () => typeof qrcode === 'function';
+        const qrPayload = l => 'PINJAMTRACK|' + l.id;
+        const qrCache = new Map();
+        function qrModules(text) {
+            const qr = qrcode(0, 'M');
+            qr.addData(text);
+            qr.make();
+            const n = qr.getModuleCount();
+            const m = [];
+            for (let r = 0; r < n; r++) { const row = []; for (let c = 0; c < n; c++) row.push(qr.isDark(r, c)); m.push(row); }
+            return { n, m };
+        }
+        function qrUri(text) {
+            if (!qrReady()) return '';
+            if (qrCache.has(text)) return qrCache.get(text);
+            const { n, m } = qrModules(text);
+            const q = 4, s = n + q * 2;
+            let d = '';
+            for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (m[r][c]) d += `M${c + q} ${r + q}h1v1h-1z`;
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${s} ${s}" width="512" height="512" shape-rendering="crispEdges"><rect width="${s}" height="${s}" fill="#fff"/><path d="${d}" fill="#000"/></svg>`;
+            const uri = 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+            qrCache.set(text, uri);
+            return uri;
+        }
+        async function downloadQr(loan) {
+            if (!qrReady()) return showToast('Pustaka QR belum termuat (butuh internet)', 'error');
+            const { n, m } = qrModules(qrPayload(loan));
+            const quiet = 4, cell = Math.floor(560 / (n + quiet * 2)), qs = cell * (n + quiet * 2);
+            const W = 640, H = 40 + qs + 120;
+            const cv = document.createElement('canvas');
+            cv.width = W; cv.height = H;
+            const ctx = cv.getContext('2d');
+            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+            const x0 = Math.round((W - qs) / 2), y0 = 40;
+            ctx.fillStyle = '#000';
+            for (let r = 0; r < n; r++) for (let c = 0; c < n; c++) if (m[r][c]) ctx.fillRect(x0 + (c + quiet) * cell, y0 + (r + quiet) * cell, cell, cell);
+            let title = loan.namaBarang;
+            ctx.textAlign = 'center'; ctx.fillStyle = '#0f172a';
+            ctx.font = '700 30px Inter, Arial, sans-serif';
+            while (title.length > 1 && ctx.measureText(title).width > 560) title = title.slice(0, -2) + '…';
+            ctx.fillText(title, W / 2, y0 + qs + 48);
+            ctx.font = '500 22px Inter, Arial, sans-serif'; ctx.fillStyle = '#64748b';
+            ctx.fillText('PinjamTrack', W / 2, y0 + qs + 88);
+            const blob = await new Promise(res => cv.toBlob(res, 'image/png'));
+            const safe = loan.namaBarang.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-').slice(0, 40) || 'barang';
+            const ok = await saveFile(`QR-${safe}-${String(loan.id).slice(-4)}.png`, blob);
+            if (ok) showToast('QR berhasil diunduh');
+        }
+
+        // ---------- Pemindai QR ----------
+        const scanModal = document.getElementById('scanModal');
+        const scanContent = document.getElementById('scanModalContent');
+        const scanVideo = document.getElementById('scanVideo');
+        scanVideo.muted = true;
+        const scanCanvas = document.createElement('canvas');
+        const scanCtx = scanCanvas.getContext('2d', { willReadFrequently: true });
+        let scanStream = null, scanRaf = 0, scanTarget = null, scanLast = 0, lastWrong = 0;
+
+        function setScanMsg(t) {
+            const el = document.getElementById('scanMsg');
+            el.textContent = t || '';
+            el.classList.toggle('hidden', !t);
+        }
+        function stopScanner() {
+            cancelAnimationFrame(scanRaf); scanRaf = 0;
+            if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; }
+            scanVideo.srcObject = null;
+        }
+        function closeScanner() {
+            stopScanner();
+            scanModal.classList.add('opacity-0');
+            scanContent.classList.add('scale-95');
+            setTimeout(() => scanModal.classList.add('hidden'), 300);
+            scanTarget = null;
+        }
+        async function openScanner(id) {
+            const loan = loanData.find(l => l.id === id);
+            if (!loan) return;
+            scanTarget = id;
+            document.getElementById('scanTitle').textContent = loan.namaBarang;
+            setScanMsg('');
+            scanModal.classList.remove('hidden');
+            void scanModal.offsetWidth;
+            scanModal.classList.remove('opacity-0');
+            scanContent.classList.remove('scale-95');
+            if (typeof jsQR !== 'function') return setScanMsg('Pemindai belum termuat (butuh internet)');
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return setScanMsg('Kamera tidak didukung. Gunakan "Dari Foto".');
+            try {
+                scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false });
+                if (scanTarget !== id) { stopScanner(); return; }
+                scanVideo.srcObject = scanStream;
+                await scanVideo.play();
+                scanLoop();
+            } catch (err) {
+                setScanMsg('Kamera tidak bisa diakses. Gunakan "Dari Foto".');
+            }
+        }
+        function scanLoop() {
+            scanRaf = requestAnimationFrame(scanLoop);
+            const now = performance.now();
+            if (now - scanLast < 120) return;
+            scanLast = now;
+            if (scanVideo.readyState < 2 || !scanVideo.videoWidth) return;
+            const sc = Math.min(1, 480 / scanVideo.videoWidth);
+            const w = Math.round(scanVideo.videoWidth * sc), h = Math.round(scanVideo.videoHeight * sc);
+            scanCanvas.width = w; scanCanvas.height = h;
+            scanCtx.drawImage(scanVideo, 0, 0, w, h);
+            const code = jsQR(scanCtx.getImageData(0, 0, w, h).data, w, h, { inversionAttempts: 'dontInvert' });
+            if (code && code.data) handleScanResult(code.data, false);
+        }
+        function handleScanResult(text, force) {
+            const loan = loanData.find(l => l.id === scanTarget);
+            if (!loan) return;
+            if (text === qrPayload(loan)) {
+                loan.verified = true;
+                save();
+                closeScanner();
+                render();
+                showToast('QR terverifikasi, barang bisa dikembalikan');
+            } else {
+                const n = Date.now();
+                if (force || n - lastWrong > 2000) { lastWrong = n; setScanMsg('QR tidak cocok dengan barang ini'); }
+            }
+        }
+        scanModal.addEventListener('click', e => { if (e.target === scanModal) closeScanner(); });
+        document.getElementById('scanCancel').addEventListener('click', closeScanner);
+        document.getElementById('scanPick').addEventListener('click', () => document.getElementById('scanFile').click());
+        document.getElementById('scanFile').addEventListener('change', e => {
+            const f = e.target.files[0];
+            e.target.value = '';
+            if (!f || !scanTarget) return;
+            if (typeof jsQR !== 'function') return setScanMsg('Pemindai belum termuat (butuh internet)');
+            const img = new Image();
+            img.onload = () => {
+                const sc = Math.min(1, 1200 / Math.max(img.width, img.height));
+                const w = Math.round(img.width * sc), h = Math.round(img.height * sc);
+                scanCanvas.width = w; scanCanvas.height = h;
+                scanCtx.drawImage(img, 0, 0, w, h);
+                URL.revokeObjectURL(img.src);
+                const code = jsQR(scanCtx.getImageData(0, 0, w, h).data, w, h);
+                if (code && code.data) handleScanResult(code.data, true);
+                else setScanMsg('QR tidak terbaca di foto');
+            };
+            img.onerror = () => setScanMsg('Gagal membuka foto');
+            img.src = URL.createObjectURL(f);
+        });
+
+        // ---------- Render ----------
+        function isOverdue(l) { return l.status === 'Dipinjam' && l.tglKembali < todayStr(); }
+
+        function render(animate = false) {
+            const borrowed = loanData.filter(l => l.status === 'Dipinjam');
+            document.getElementById('statBorrowed').textContent = borrowed.length;
+            document.getElementById('statOverdue').textContent = borrowed.filter(isOverdue).length;
+            document.getElementById('statReturned').textContent = loanData.length - borrowed.length;
+
+            const q = query.trim().toLowerCase();
+            const list = loanData.filter(l =>
+                (filter === 'all' || l.status === filter) &&
+                (!q || l.namaBarang.toLowerCase().includes(q) || l.namaPeminjam.toLowerCase().includes(q))
+            );
+
+            const wrap = document.getElementById('loanList');
+            const empty = document.getElementById('emptyState');
+            wrap.innerHTML = '';
+            empty.classList.toggle('hidden', list.length > 0);
+            empty.classList.toggle('flex', list.length === 0);
+
+            list.forEach((l, idx) => {
+                const overdue = isOverdue(l);
+                const badge = l.status === 'Dikembalikan'
+                    ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-100/80 text-emerald-800">${ic('check', 'w-3 h-3')} Dikembalikan</span>`
+                    : overdue
+                        ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-rose-100/80 text-rose-800">${ic('clock', 'w-3 h-3')} Terlambat</span>`
+                        : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-100/80 text-amber-800">${ic('clock', 'w-3 h-3')} Dipinjam</span>`;
+
+                const verified = !!l.verified;
+                const qrSrc = qrUri(qrPayload(l));
+                const verifyBlock = l.status === 'Dipinjam' ? `
+                        <div class="flex items-center gap-2">
+                            <div class="flex-1 flex items-center gap-1.5 text-xs font-medium ${verified ? 'text-emerald-600' : 'text-amber-600'}">${ic(verified ? 'check-circle' : 'lock', 'w-4 h-4')} ${verified ? 'QR terverifikasi' : 'Scan QR untuk verifikasi'}</div>
+                            <button data-action="scan" data-id="${l.id}" class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-500 hover:bg-indigo-600 text-white text-xs font-medium transition-colors">${ic('qr', 'w-4 h-4')} ${verified ? 'Scan ulang' : 'Scan QR'}</button>
+                        </div>` : '';
+                const card = document.createElement('article');
+                card.className = 'glass rounded-2xl overflow-hidden flex flex-col' + (animate ? ' card-in' : '');
+                if (animate) card.style.animationDelay = Math.min(idx * 50, 400) + 'ms';
+                card.innerHTML = `
+                    <button class="relative h-40 w-full group" data-action="preview" data-id="${l.id}">
+                        <img src="${l.fotoUrl}" alt="Kondisi awal" class="w-full h-full object-cover">
+                        <div class="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white">${ic('eye', 'w-7 h-7')}</div>
+                        <div class="absolute top-2 right-2">${badge}</div>
+                    </button>
+                    <div class="p-4 flex-1 flex flex-col gap-3 relative">
+                        <div>
+                            <h3 class="font-semibold text-slate-800 leading-tight pr-20">${esc(l.namaBarang)}</h3>
+                            <p class="text-sm text-slate-500 mt-0.5">Jumlah: <span class="font-medium text-slate-700">${esc(l.jumlah)}</span> unit</p>
+                            <button data-action="qrview" data-id="${l.id}" title="Lihat QR" class="absolute top-4 right-4 w-16 h-16 rounded-xl overflow-hidden bg-white border border-slate-200/70 shadow-sm flex items-center justify-center">${qrSrc ? `<img src="${qrSrc}" alt="QR" class="w-full h-full">` : ic('qr', 'w-7 h-7 text-slate-400')}</button>
+                        </div>
+                        <div class="flex items-center gap-2 text-sm text-slate-700">
+                            <div class="w-7 h-7 rounded-full bg-white/70 text-indigo-600 flex items-center justify-center">${ic('user', 'w-4 h-4')}</div>
+                            <span class="font-medium">${esc(l.namaPeminjam)}</span>
+                        </div>
+                        <div class="text-xs text-slate-600 space-y-1">
+                            <div class="flex items-center gap-1.5">${ic('calendar', 'w-3.5 h-3.5 text-slate-400')} Pinjam: ${formatDate(l.tglPinjam)}</div>
+                            <div class="flex items-center gap-1.5 ${overdue ? 'text-rose-600 font-medium' : ''}">${ic('calendar', 'w-3.5 h-3.5 ' + (l.status === 'Dikembalikan' ? 'text-emerald-500' : overdue ? 'text-rose-500' : 'text-amber-500'))} Kembali: ${formatDate(l.tglKembali)}</div>
+                        </div>
+                        ${verifyBlock}
+                        <div class="flex gap-2 mt-auto pt-1">
+                            ${l.status === 'Dipinjam' ? `<button data-action="return" data-id="${l.id}" aria-disabled="${!verified}" class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl text-sm font-medium transition-all ${verified ? 'bg-emerald-500/90 hover:bg-emerald-600 text-white' : 'bg-slate-400/30 text-slate-500 cursor-not-allowed'}">${ic(verified ? 'check-circle' : 'lock', 'w-4 h-4')} Telah Dikembalikan</button>` : ''}
+                            <button data-action="qrdl" data-id="${l.id}" title="Unduh QR" class="w-10 flex items-center justify-center rounded-xl bg-white/70 hover:bg-white text-indigo-600 transition-colors">${ic('download', 'w-4 h-4')}</button>
+                            <button data-action="delete" data-id="${l.id}" title="Hapus" class="${l.status === 'Dipinjam' ? 'w-10' : 'flex-1'} flex items-center justify-center gap-1.5 py-2 rounded-xl bg-white/70 hover:bg-rose-100 text-rose-600 text-sm font-medium transition-colors">${ic('trash', 'w-4 h-4')}${l.status === 'Dipinjam' ? '' : ' Hapus'}</button>
+                        </div>
+                    </div>`;
+                wrap.appendChild(card);
+            });
+        }
+
+        document.getElementById('loanList').addEventListener('click', e => {
+            const btn = e.target.closest('[data-action]');
+            if (!btn) return;
+            const id = btn.dataset.id;
+            const loan = loanData.find(l => l.id === id);
+            if (!loan) return;
+            if (btn.dataset.action === 'preview') openImageModal(loan.fotoUrl);
+            if (btn.dataset.action === 'qrview') {
+                const u = qrUri(qrPayload(loan));
+                if (u) openImageModal(u); else showToast('Pustaka QR belum termuat (butuh internet)', 'error');
+                return;
+            }
+            if (btn.dataset.action === 'qrdl') { downloadQr(loan); return; }
+            if (btn.dataset.action === 'scan') { openScanner(loan.id); return; }
+            if (btn.dataset.action === 'return') {
+                if (!loan.verified) return showToast('Scan QR barang terlebih dahulu', 'error');
+                loan.status = 'Dikembalikan';
+                loan.actualReturnDate = new Date().toISOString();
+                save(); render();
+                showToast('Barang ditandai sudah dikembalikan');
+            }
+            if (btn.dataset.action === 'delete') {
+                openConfirm('Hapus Data Peminjaman?', 'Data yang dihapus akan hilang secara permanen.', () => {
+                    loanData = loanData.filter(l => l.id !== id);
+                    save(); render();
+                    showToast('Data peminjaman dihapus');
+                });
+            }
+        });
+
+        // Filter & cari
+        function syncSegment() {
+            document.querySelectorAll('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === filter));
+        }
+        document.getElementById('segFilter').addEventListener('click', e => {
+            const b = e.target.closest('.seg-btn');
+            if (!b) return;
+            filter = b.dataset.filter;
+            syncSegment(); render(true);
+        });
+        document.getElementById('searchInput').addEventListener('input', e => { query = e.target.value; render(); });
+
+        // ---------- Modal konfirmasi ----------
+        const confirmModal = document.getElementById('confirmModal');
+        const confirmContent = document.getElementById('confirmModalContent');
+        let confirmAction = null;
+
+        function openConfirm(title, text, onOk) {
+            document.getElementById('confirmTitle').textContent = title;
+            document.getElementById('confirmText').textContent = text;
+            confirmAction = onOk;
+            confirmModal.classList.remove('hidden');
+            void confirmModal.offsetWidth;
+            confirmModal.classList.remove('opacity-0');
+            confirmContent.classList.remove('scale-95');
+        }
+        function closeConfirm() {
+            confirmModal.classList.add('opacity-0');
+            confirmContent.classList.add('scale-95');
+            setTimeout(() => { confirmModal.classList.add('hidden'); confirmAction = null; }, 300);
+        }
+        document.getElementById('confirmCancel').addEventListener('click', closeConfirm);
+        confirmModal.addEventListener('click', e => { if (e.target === confirmModal) closeConfirm(); });
+        document.getElementById('confirmOk').addEventListener('click', () => {
+            if (confirmAction) confirmAction();
+            closeConfirm();
+        });
+
+        // ---------- Preview gambar ----------
+        const imageModal = document.getElementById('imageModal');
+        const imageModalContent = document.getElementById('imageModalContent');
+        function openImageModal(url) {
+            document.getElementById('previewImageLarge').src = url;
+            imageModal.classList.remove('hidden');
+            void imageModal.offsetWidth;
+            imageModal.classList.remove('opacity-0');
+            imageModalContent.classList.remove('scale-95');
+        }
+        function closeImageModal() {
+            imageModal.classList.add('opacity-0');
+            imageModalContent.classList.add('scale-95');
+            setTimeout(() => { imageModal.classList.add('hidden'); document.getElementById('previewImageLarge').src = ''; }, 300);
+        }
+        imageModal.addEventListener('click', e => { if (e.target === imageModal) closeImageModal(); });
+        document.getElementById('imageClose').addEventListener('click', closeImageModal);
+
+        // ---------- Setting actions ----------
+        document.getElementById('clearReturnedBtn').addEventListener('click', () => {
+            if (!loanData.some(l => l.status === 'Dikembalikan')) return showToast('Belum ada data yang dikembalikan', 'error');
+            openConfirm('Hapus Riwayat Pengembalian?', 'Semua data berstatus Dikembalikan akan dihapus.', () => {
+                loanData = loanData.filter(l => l.status !== 'Dikembalikan');
+                save(); render(); showToast('Riwayat pengembalian dibersihkan');
+            });
+        });
+        document.getElementById('clearAllBtn').addEventListener('click', () => {
+            if (!loanData.length) return showToast('Tidak ada data untuk dihapus', 'error');
+            openConfirm('Hapus Semua Data?', 'Seluruh data peminjaman akan hilang secara permanen.', () => {
+                loanData = [];
+                save(); render(); showToast('Semua data dihapus');
+            });
+        });
+        // ---------- Ekspor / Impor ----------
+        const isNative = !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+        if (isNative) document.getElementById('installBtn2').closest('.glass').classList.add('hidden');
+
+        const exportModal = document.getElementById('exportModal');
+        const exportContent = document.getElementById('exportModalContent');
+        function openExport() {
+            exportModal.classList.remove('hidden');
+            void exportModal.offsetWidth;
+            exportModal.classList.remove('opacity-0');
+            exportContent.classList.remove('scale-95');
+        }
+        function closeExport() {
+            exportModal.classList.add('opacity-0');
+            exportContent.classList.add('scale-95');
+            setTimeout(() => exportModal.classList.add('hidden'), 300);
+        }
+        exportModal.addEventListener('click', e => { if (e.target === exportModal) closeExport(); });
+        document.getElementById('exportCancel').addEventListener('click', closeExport);
+        document.getElementById('exportBtn').addEventListener('click', () => {
+            if (!loanData.length) return showToast('Tidak ada data untuk diekspor', 'error');
+            openExport();
+        });
+
+        function blobToBase64(blob) {
+            return new Promise((res, rej) => {
+                const r = new FileReader();
+                r.onload = () => res(String(r.result).split(',')[1]);
+                r.onerror = rej;
+                r.readAsDataURL(blob);
+            });
+        }
+        async function saveFile(name, blob) {
+            if (isNative) {
+                try {
+                    const { Filesystem, Share } = window.Capacitor.Plugins;
+                    const data = await blobToBase64(blob);
+                    const file = await Filesystem.writeFile({ path: name, data, directory: 'CACHE' });
+                    await Share.share({ title: name, files: [file.uri] });
+                    return true;
+                } catch (err) {
+                    if (!/cancel/i.test(String((err && err.message) || err))) showToast('Gagal menyimpan file', 'error');
+                    return false;
+                }
+            }
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = name;
+            document.body.appendChild(a); a.click(); a.remove();
+            setTimeout(() => URL.revokeObjectURL(a.href), 1500);
+            return true;
+        }
+
+        // XLSX minimal (ZIP tanpa kompresi)
+        const CRC_T = (() => {
+            const t = [];
+            for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+            return t;
+        })();
+        function crc32(b) {
+            let c = 0xFFFFFFFF;
+            for (let i = 0; i < b.length; i++) c = CRC_T[(c ^ b[i]) & 255] ^ (c >>> 8);
+            return (c ^ 0xFFFFFFFF) >>> 0;
+        }
+        function makeZip(files, mime) {
+            const enc = new TextEncoder();
+            const u16 = n => [n & 255, (n >> 8) & 255];
+            const u32 = n => [n & 255, (n >> 8) & 255, (n >> 16) & 255, (n >>> 24) & 255];
+            const parts = [], central = [];
+            let offset = 0;
+            files.forEach(f => {
+                const name = enc.encode(f.name), data = enc.encode(f.data), crc = crc32(data);
+                const local = new Uint8Array([0x50, 0x4b, 3, 4, ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(name.length), ...u16(0)]);
+                parts.push(local, name, data);
+                central.push(new Uint8Array([0x50, 0x4b, 1, 2, ...u16(20), ...u16(20), ...u16(0x0800), ...u16(0), ...u16(0), ...u16(0x21), ...u32(crc), ...u32(data.length), ...u32(data.length), ...u16(name.length), ...u16(0), ...u16(0), ...u16(0), ...u16(0), ...u32(0), ...u32(offset)]), name);
+                offset += local.length + name.length + data.length;
+            });
+            const cdSize = central.reduce((s, p) => s + p.length, 0);
+            const end = new Uint8Array([0x50, 0x4b, 5, 6, ...u16(0), ...u16(0), ...u16(files.length), ...u16(files.length), ...u32(cdSize), ...u32(offset), ...u16(0)]);
+            return new Blob([...parts, ...central, end], { type: mime });
+        }
+        const xmlEsc = s => String(s).replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g, '').replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+        function buildXlsx(rows) {
+            const col = i => String.fromCharCode(65 + i);
+            const fmtISO = iso => { const d = new Date(iso); return iso && !isNaN(d) ? d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : ''; };
+            const head = ['No', 'Nama Barang', 'Peminjam', 'Jumlah', 'Tanggal Pinjam', 'Rencana Kembali', 'Status', 'Tanggal Dikembalikan'];
+            const body = rows.map((l, i) => [i + 1, l.namaBarang, l.namaPeminjam, parseInt(l.jumlah, 10) || 0, formatDate(l.tglPinjam), formatDate(l.tglKembali), l.status, fmtISO(l.actualReturnDate)]);
+            const cell = (v, r, c, bold) => typeof v === 'number'
+                ? `<c r="${col(c)}${r}"><v>${v}</v></c>`
+                : `<c r="${col(c)}${r}" t="inlineStr"${bold ? ' s="1"' : ''}><is><t>${xmlEsc(v)}</t></is></c>`;
+            const rowsXml = [head, ...body].map((row, ri) => `<row r="${ri + 1}">${row.map((v, ci) => cell(v, ri + 1, ci, ri === 0)).join('')}</row>`).join('');
+            const cols = '<cols><col min="1" max="1" width="6" customWidth="1"/><col min="2" max="3" width="24" customWidth="1"/><col min="4" max="4" width="10" customWidth="1"/><col min="5" max="6" width="18" customWidth="1"/><col min="7" max="7" width="14" customWidth="1"/><col min="8" max="8" width="22" customWidth="1"/></cols>';
+            const NS = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
+            const REL = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+            const XML = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
+            return makeZip([
+                { name: '[Content_Types].xml', data: `${XML}<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>` },
+                { name: '_rels/.rels', data: `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/officeDocument" Target="xl/workbook.xml"/></Relationships>` },
+                { name: 'xl/workbook.xml', data: `${XML}<workbook xmlns="${NS}" xmlns:r="${REL}"><sheets><sheet name="Peminjaman" sheetId="1" r:id="rId1"/></sheets></workbook>` },
+                { name: 'xl/_rels/workbook.xml.rels', data: `${XML}<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="${REL}/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="${REL}/styles" Target="styles.xml"/></Relationships>` },
+                { name: 'xl/styles.xml', data: `${XML}<styleSheet xmlns="${NS}"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>` },
+                { name: 'xl/worksheets/sheet1.xml', data: `${XML}<worksheet xmlns="${NS}">${cols}<sheetData>${rowsXml}</sheetData></worksheet>` }
+            ], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        }
+
+        document.getElementById('exportJson').addEventListener('click', async () => {
+            closeExport();
+            const payload = { app: 'PinjamTrack', version: 2, exportedAt: new Date().toISOString(), data: loanData };
+            const ok = await saveFile(`pinjamtrack-${todayStr()}.json`, new Blob([JSON.stringify(payload)], { type: 'application/json' }));
+            if (ok) showToast('Cadangan JSON berhasil diekspor');
+        });
+        document.getElementById('exportXlsx').addEventListener('click', async () => {
+            closeExport();
+            const ok = await saveFile(`pinjamtrack-${todayStr()}.xlsx`, buildXlsx(loanData));
+            if (ok) showToast('Spreadsheet berhasil diekspor');
+        });
+
+        // Impor JSON
+        const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+        const IMG_RE = /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+        const PLACEHOLDER = 'data:image/svg+xml;utf8,' + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"><rect width="400" height="300" fill="#e2e8f0"/><path d="M150 190l35-45 25 30 20-25 30 40z" fill="#94a3b8"/><circle cx="170" cy="120" r="14" fill="#94a3b8"/></svg>');
+        function sanitizeLoan(o) {
+            if (!o || typeof o !== 'object') return null;
+            const nb = String(o.namaBarang || '').trim().slice(0, 200);
+            const np = String(o.namaPeminjam || '').trim().slice(0, 200);
+            if (!nb || !np || !DATE_RE.test(o.tglPinjam) || !DATE_RE.test(o.tglKembali)) return null;
+            return {
+                id: String(o.id || '').replace(/[^\w-]/g, '') || (Date.now() + Math.random().toString(36).slice(2, 7)),
+                namaBarang: nb,
+                namaPeminjam: np,
+                jumlah: String(Math.max(1, parseInt(o.jumlah, 10) || 1)),
+                tglPinjam: o.tglPinjam,
+                tglKembali: o.tglKembali,
+                fotoUrl: IMG_RE.test(o.fotoUrl) ? o.fotoUrl : PLACEHOLDER,
+                status: o.status === 'Dikembalikan' ? 'Dikembalikan' : 'Dipinjam',
+                actualReturnDate: typeof o.actualReturnDate === 'string' ? o.actualReturnDate.slice(0, 40) : null,
+                verified: o.verified === true
+            };
+        }
+        const importInput = document.getElementById('importInput');
+        document.getElementById('importBtn').addEventListener('click', () => importInput.click());
+        importInput.addEventListener('change', async () => {
+            const f = importInput.files[0];
+            importInput.value = '';
+            if (!f) return;
+            try {
+                const parsed = JSON.parse(await f.text());
+                const arr = Array.isArray(parsed) ? parsed : parsed && parsed.data;
+                if (!Array.isArray(arr)) throw new Error('format');
+                const have = new Set(loanData.map(l => l.id));
+                const added = [];
+                let skipped = 0;
+                arr.forEach(o => {
+                    const l = sanitizeLoan(o);
+                    if (!l || have.has(l.id)) { skipped++; return; }
+                    have.add(l.id);
+                    added.push(l);
+                });
+                if (!added.length) return showToast(skipped ? 'Tidak ada data baru untuk dipulihkan' : 'File tidak berisi data', 'error');
+                loanData = [...added, ...loanData].sort((a, b) => String(b.id).localeCompare(String(a.id), undefined, { numeric: true }));
+                save(); render(true);
+                showToast(`${added.length} data dipulihkan${skipped ? `, ${skipped} dilewati` : ''}`);
+            } catch (err) {
+                showToast('File JSON tidak valid', 'error');
+            }
+        });
+
+        // ---------- Efek tekan iOS + cahaya ----------
+        document.querySelectorAll('header > div, nav > div, #view-beranda .grid-cols-3 > .glass, #view-setting .glass, .search-glass').forEach(el => el.classList.add('lit'));
+        document.querySelector('nav > div').classList.add('soft');
+
+        let activeLit = null, litSince = 0, litState = null, litRaf = 0;
+        const localPos = (el, e) => { const r = el.getBoundingClientRect(); return [e.clientX - r.left, e.clientY - r.top]; };
+        // Cahaya meluncur halus mengikuti jari / kursor (lerp per frame)
+        function litTick() {
+            const s = litState;
+            if (!s) { litRaf = 0; return; }
+            s.cx += (s.tx - s.cx) * 0.2;
+            s.cy += (s.ty - s.cy) * 0.2;
+            s.el.style.setProperty('--mx', s.cx + 'px');
+            s.el.style.setProperty('--my', s.cy + 'px');
+            if (s.endAt && performance.now() > s.endAt) { litState = null; litRaf = 0; return; }
+            litRaf = requestAnimationFrame(litTick);
+        }
+        document.addEventListener('pointerdown', e => {
+            const el = e.target.closest('.lit');
+            if (!el) return;
+            const [x, y] = localPos(el, e);
+            activeLit = el; litSince = Date.now();
+            litState = { el, cx: x, cy: y, tx: x, ty: y, endAt: 0 };
+            el.style.setProperty('--mx', x + 'px');
+            el.style.setProperty('--my', y + 'px');
+            el.classList.add('pressed');
+            if (!litRaf) litRaf = requestAnimationFrame(litTick);
+        });
+        document.addEventListener('pointermove', e => {
+            if (!activeLit || !litState) return;
+            const [x, y] = localPos(activeLit, e);
+            litState.tx = x; litState.ty = y;
+        });
+        ['pointerup', 'pointercancel'].forEach(t => document.addEventListener(t, () => {
+            if (!activeLit) return;
+            const el = activeLit; activeLit = null;
+            if (litState && litState.el === el) litState.endAt = performance.now() + 700;
+            setTimeout(() => el.classList.remove('pressed'), Math.max(0, 140 - (Date.now() - litSince)));
+        }));
+
+        // ---------- Tema terang / gelap ----------
+        const THEME_KEY = 'pinjamtrack_theme';
+        const themeSwitch = document.getElementById('themeSwitch');
+        let theme = document.documentElement.getAttribute('data-theme') || 'light';
+        function applyTheme(t) {
+            document.documentElement.setAttribute('data-theme', t);
+            themeSwitch.setAttribute('aria-checked', t === 'dark' ? 'true' : 'false');
+            document.getElementById('themeDesc').textContent = t === 'dark' ? 'Tema gelap aktif' : 'Tema terang aktif';
+            document.getElementById('themeMeta').setAttribute('content', t === 'dark' ? '#0b1120' : '#dfe5f1');
+        }
+        applyTheme(theme);
+        document.getElementById('themeRow').addEventListener('click', () => {
+            theme = theme === 'dark' ? 'light' : 'dark';
+            applyTheme(theme);
+            try { localStorage.setItem(THEME_KEY, theme); } catch (e) {}
+        });
+
+        // ---------- Toast ----------
+        function showToast(message, type = 'success') {
+            const box = document.getElementById('toastContainer');
+            const ok = type === 'success';
+            const toast = document.createElement('div');
+            toast.className = 'glass-strong rounded-2xl px-4 py-3 flex items-center gap-2.5 transition-all duration-300 opacity-0 translate-y-3 max-w-sm w-full';
+            toast.innerHTML = `<span class="${ok ? 'text-emerald-500' : 'text-rose-500'}">${ic(ok ? 'check-circle' : 'alert', 'w-6 h-6')}</span><p class="text-sm font-medium text-slate-700">${esc(message)}</p>`;
+            box.appendChild(toast);
+            requestAnimationFrame(() => toast.classList.remove('opacity-0', 'translate-y-3'));
+            setTimeout(() => {
+                toast.classList.add('opacity-0', 'translate-y-3');
+                setTimeout(() => toast.remove(), 300);
+            }, 2800);
+        }
+
+        // ---------- PWA ----------
+        const manifestData = {
+            name: "PinjamTrack - Peminjaman",
+            short_name: "PinjamTrack",
+            start_url: ".",
+            display: "standalone",
+            background_color: "#dfe5f1",
+            theme_color: "#6366f1",
+            icons: [
+                { src: "https://placehold.co/192x192/6366f1/ffffff.png?text=PT", sizes: "192x192", type: "image/png" },
+                { src: "https://placehold.co/512x512/6366f1/ffffff.png?text=PT", sizes: "512x512", type: "image/png" }
+            ]
+        };
+        document.getElementById('manifest-link').href = 'data:application/manifest+json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifestData));
+
+        if ('serviceWorker' in navigator) {
+            try {
+                const swCode = `self.addEventListener('install',e=>self.skipWaiting());self.addEventListener('activate',e=>e.waitUntil(clients.claim()));self.addEventListener('fetch',e=>{});`;
+                navigator.serviceWorker.register(URL.createObjectURL(new Blob([swCode], { type: 'application/javascript' }))).catch(() => {});
+            } catch (e) {}
+        }
+
+        let deferredPrompt = null;
+        const installBtn = document.getElementById('installBtn');
+        const installBtn2 = document.getElementById('installBtn2');
+
+        async function doInstall() {
+            if (!deferredPrompt) return showToast('Gunakan menu browser: "Tambahkan ke Layar Utama"', 'error');
+            deferredPrompt.prompt();
+            await deferredPrompt.userChoice;
+            deferredPrompt = null;
+            installBtn.classList.add('hidden'); installBtn.classList.remove('flex');
+        }
+        window.addEventListener('beforeinstallprompt', e => {
+            e.preventDefault();
+            deferredPrompt = e;
+            installBtn.classList.remove('hidden'); installBtn.classList.add('flex');
+        });
+        installBtn.addEventListener('click', doInstall);
+        installBtn2.addEventListener('click', doInstall);
+        window.addEventListener('appinstalled', () => {
+            installBtn.classList.add('hidden'); installBtn.classList.remove('flex');
+            showToast('Aplikasi berhasil diinstal!');
+        });
+
+        render();
+    </script>
+</body>
+</html>
